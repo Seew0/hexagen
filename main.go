@@ -145,7 +145,7 @@ func generate(cfg Config) error {
 	if err := writeMakefile(rootAbs, cfg.Port); err != nil {
 		return err
 	}
-	if err := writeTemplate(rootAbs, "cmd/main.go", "main.go.tmpl", cfg); err != nil {
+	if err := writeTemplate(rootAbs, "cmd/main.go", "app.go.tmpl", cfg); err != nil {
 		return err
 	}
 	if err := writeTemplate(rootAbs, "services/serviceName/routes/router.go", "router.go.tmpl", cfg); err != nil {
@@ -173,10 +173,10 @@ func writeMakefile(root, port string) error {
 	content := `PORT ?= ` + port + `
 
 run:
-	go run ./cmd/main.go
+	go run ./cmd/app.go
 
 build:
-	go build -o bin/app ./cmd/main.go
+	go build -o bin/app ./cmd/app.go
 
 test:
 	go test ./...

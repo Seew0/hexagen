@@ -1,3 +1,3 @@
-module github.com/seew0/hexagen
+module service.com/service
 
 go 1.22.0

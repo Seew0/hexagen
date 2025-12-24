@@ -145,7 +145,7 @@ func generate(cfg Config) error {
 	if err := writeMakefile(rootAbs, cfg.Port); err != nil {
 		return err
 	}
-	if err := writeTemplate(rootAbs, "cmd/main.go", "templates/app.go.tmpl", cfg); err != nil {
+	if err := writeTemplate(rootAbs, "cmd/main.go", "app.go.tmpl", cfg); err != nil {
 		return err
 	}
 	if err := writeTemplate(rootAbs, "services/serviceName/routes/router.go", "router.go.tmpl", cfg); err != nil {

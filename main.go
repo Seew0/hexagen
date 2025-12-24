@@ -13,7 +13,7 @@ import (
 
 var version = "1.0.0"
 
-
+//go:embed templates/*
 var templateFS embed.FS
 
 type Config struct {
@@ -50,11 +50,13 @@ func main() {
 	clean := flag.Bool("c", false, "Clean target directory")
 	flag.Parse()
 
+	// Show version
 	if *showVersion {
 		fmt.Println("hexagen version", version)
 		return
 	}
 
+	// Build config
 	cfg := Config{
 		Root:       *root,
 		ModuleName: *moduleName,
@@ -63,6 +65,7 @@ func main() {
 		Clean:      *clean,
 	}
 
+	// Interactive mode
 	if *interactive {
 		reader := bufio.NewReader(os.Stdin)
 
@@ -92,10 +95,12 @@ func main() {
 		}
 	}
 
+	// Default module name
 	if cfg.ModuleName == "" {
 		cfg.ModuleName = "service.com/service"
 	}
 
+	// Generate project
 	if err := generate(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -108,12 +113,15 @@ func main() {
 }
 
 func generate(cfg Config) error {
+
+	// Create root if missing
 	if err := os.MkdirAll(cfg.Root, 0755); err != nil {
 		return err
 	}
 
 	rootAbs, _ := filepath.Abs(cfg.Root)
 
+	// Clean directory
 	if cfg.Clean {
 		entries, _ := os.ReadDir(rootAbs)
 		for _, e := range entries {
@@ -121,6 +129,7 @@ func generate(cfg Config) error {
 		}
 	}
 
+	// Create directories
 	for _, dir := range dirs {
 		path := filepath.Join(rootAbs, dir)
 		os.MkdirAll(path, 0755)
@@ -129,6 +138,7 @@ func generate(cfg Config) error {
 		}
 	}
 
+	// Generate files
 	if err := writeGoMod(rootAbs, cfg.ModuleName); err != nil {
 		return err
 	}
@@ -178,29 +188,36 @@ setup:
 }
 
 func writeTemplate(root, outputPath, templateName string, cfg Config) error {
+
+	// Load template file from embed
 	tmplBytes, err := templateFS.ReadFile("templates/" + templateName)
 	if err != nil {
 		return err
 	}
 
+	// Parse template
 	tmpl, err := template.New(templateName).Parse(string(tmplBytes))
 	if err != nil {
 		return err
 	}
 
+	// Ensure directory exists
 	outPath := filepath.Join(root, outputPath)
 	os.MkdirAll(filepath.Dir(outPath), 0755)
 
+	// Create file
 	f, err := os.Create(outPath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
+	// Replace template vars
 	data := map[string]string{
 		"MODULE": cfg.ModuleName,
 		"PORT":   cfg.Port,
 	}
 
+	// Execute template
 	return tmpl.Execute(f, data)
 }

@@ -1,0 +1,73 @@
+package main
+
+import (
+	"context"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/fx"
+	"go.uber.org/zap"
+
+	initcfg "{{MODULE}}/config/init"
+	"{{MODULE}}/commons/utils/logger"
+	"{{MODULE}}/services/serviceName/routes"
+)
+
+func NewGinEngine() *gin.Engine {
+	return gin.Default()
+}
+
+type ServerParams struct {
+	fx.In
+
+	Lifecycle fx.Lifecycle
+	Engine    *gin.Engine
+	Logger    *zap.Logger
+	Config    config.ServerConfig
+}
+
+func StartServer(p ServerParams) {
+	server := &http.Server{
+		Addr:    ":" + p.Config.Port,
+		Handler: p.Engine,
+	}
+
+	p.Lifecycle.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			go func() {
+				p.Logger.Info("Starting service",
+					zap.String("service", p.Config.ServiceName),
+					zap.String("env", p.Config.Env),
+					zap.String("port", p.Config.Port),
+				)
+				if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+					p.Logger.Error("Server error", zap.Error(err))
+				}
+			}()
+			return nil
+		},
+
+		OnStop: func(ctx context.Context) error {
+			p.Logger.Info("Shutting down server...")
+			ctxShutdown, cancel := context.WithTimeout(ctx, 5*time.Second)
+			defer cancel()
+			return server.Shutdown(ctxShutdown)
+		},
+	})
+}
+
+func main() {
+	app := fx.New(
+		fx.Provide(
+			NewGinEngine,
+			initcfg.NewServerConfig,
+			logger.New,
+			routes.NewRouter,
+		),
+		fx.Invoke(routes.RegisterRoutes),
+		fx.Invoke(StartServer),
+	)
+
+	app.Run()
+}

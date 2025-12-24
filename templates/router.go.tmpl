@@ -1,0 +1,17 @@
+package routes
+
+import "github.com/gin-gonic/gin"
+
+func NewRouter() *gin.Engine {
+	return gin.Default()
+}
+
+func RegisterRoutes(r *gin.Engine) {
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
+	r.GET("/api/v1/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok", "pong": true})
+	})
+}

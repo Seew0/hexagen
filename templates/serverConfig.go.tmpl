@@ -1,0 +1,29 @@
+package config
+
+import "os"
+
+type ServerConfig struct {
+	Env         string
+	ServiceName string
+	Port        string
+}
+
+func NewServerConfig() ServerConfig {
+	cfg := ServerConfig{
+		Env:         os.Getenv("ENV"),
+		ServiceName: os.Getenv("SERVICE_NAME"),
+		Port:        os.Getenv("PORT"),
+	}
+
+	if cfg.Env == "" {
+		cfg.Env = "development"
+	}
+	if cfg.ServiceName == "" {
+		cfg.ServiceName = "serviceName"
+	}
+	if cfg.Port == "" {
+		cfg.Port = "{{PORT}}"
+	}
+
+	return cfg
+}

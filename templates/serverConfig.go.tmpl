@@ -22,7 +22,7 @@ func NewServerConfig() ServerConfig {
 		cfg.ServiceName = "serviceName"
 	}
 	if cfg.Port == "" {
-		cfg.Port = "{{PORT}}"
+		cfg.Port = "{{ .PORT }}"
 	}
 
 	return cfg

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -50,13 +51,11 @@ func main() {
 	clean := flag.Bool("c", false, "Clean target directory")
 	flag.Parse()
 
-	// Show version
 	if *showVersion {
 		fmt.Println("hexagen version", version)
 		return
 	}
 
-	// Build config
 	cfg := Config{
 		Root:       *root,
 		ModuleName: *moduleName,
@@ -65,7 +64,6 @@ func main() {
 		Clean:      *clean,
 	}
 
-	// Interactive mode
 	if *interactive {
 		reader := bufio.NewReader(os.Stdin)
 
@@ -95,15 +93,23 @@ func main() {
 		}
 	}
 
-	// Default module name
 	if cfg.ModuleName == "" {
 		cfg.ModuleName = "service.com/service"
 	}
 
-	// Generate project
 	if err := generate(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
+	}
+
+	fmt.Println("\n✓ Project structure created successfully!")
+	fmt.Println("⏳ Installing dependencies...")
+
+	if err := installDependencies(cfg.Root); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Failed to install dependencies: %v\n", err)
+		fmt.Println("You can manually run: go mod tidy")
+	} else {
+		fmt.Println("✓ Dependencies installed successfully!")
 	}
 
 	fmt.Println("\n✓ Done! Your project is ready.")
@@ -113,15 +119,12 @@ func main() {
 }
 
 func generate(cfg Config) error {
-
-	// Create root if missing
 	if err := os.MkdirAll(cfg.Root, 0755); err != nil {
 		return err
 	}
 
 	rootAbs, _ := filepath.Abs(cfg.Root)
 
-	// Clean directory
 	if cfg.Clean {
 		entries, _ := os.ReadDir(rootAbs)
 		for _, e := range entries {
@@ -129,32 +132,31 @@ func generate(cfg Config) error {
 		}
 	}
 
-	// Create directories
 	for _, dir := range dirs {
 		path := filepath.Join(rootAbs, dir)
 		os.MkdirAll(path, 0755)
 		if cfg.Gitkeep {
-			os.WriteFile(filepath.Join(path, ".gitkeep"), []byte(""), 0644)
+			_ = os.WriteFile(filepath.Join(path, ".gitkeep"), []byte(""), 0644)
 		}
 	}
 
-	// Generate files
 	if err := writeGoMod(rootAbs, cfg.ModuleName); err != nil {
 		return err
 	}
 	if err := writeMakefile(rootAbs, cfg.Port); err != nil {
 		return err
 	}
-	if err := writeTemplate(rootAbs, "cmd/main.go", "app.go.tmpl", cfg); err != nil {
+
+	if err := writeTemplate(rootAbs, "cmd/main.go", "templates/app.go.tmpl", cfg); err != nil {
 		return err
 	}
-	if err := writeTemplate(rootAbs, "services/serviceName/routes/router.go", "router.go.tmpl", cfg); err != nil {
+	if err := writeTemplate(rootAbs, "services/serviceName/routes/router.go", "templates/router.go.tmpl", cfg); err != nil {
 		return err
 	}
-	if err := writeTemplate(rootAbs, "config/init/serverConfig.go", "serverConfig.go.tmpl", cfg); err != nil {
+	if err := writeTemplate(rootAbs, "config/init/serverConfig.go", "templates/serverConfig.go.tmpl", cfg); err != nil {
 		return err
 	}
-	if err := writeTemplate(rootAbs, "commons/utils/logger.go", "logger.go.tmpl", cfg); err != nil {
+	if err := writeTemplate(rootAbs, "commons/utils/logger.go", "templates/logger.go.tmpl", cfg); err != nil {
 		return err
 	}
 
@@ -166,6 +168,7 @@ func writeGoMod(root, module string) error {
 
 go 1.22.0
 `, module)
+
 	return os.WriteFile(filepath.Join(root, "go.mod"), []byte(content), 0644)
 }
 
@@ -173,10 +176,10 @@ func writeMakefile(root, port string) error {
 	content := `PORT ?= ` + port + `
 
 run:
-	go run ./cmd/app.go
+	go run ./cmd/main.go
 
 build:
-	go build -o bin/app ./cmd/app.go
+	go build -o bin/app ./cmd/main.go
 
 test:
 	go test ./...
@@ -187,37 +190,44 @@ setup:
 	return os.WriteFile(filepath.Join(root, "Makefile"), []byte(content), 0644)
 }
 
-func writeTemplate(root, outputPath, templateName string, cfg Config) error {
-
-	// Load template file from embed
-	tmplBytes, err := templateFS.ReadFile("templates/" + templateName)
+func writeTemplate(root, outputPath, templatePath string, cfg Config) error {
+	tmplBytes, err := templateFS.ReadFile(templatePath)
 	if err != nil {
 		return err
 	}
 
-	// Parse template
-	tmpl, err := template.New(templateName).Parse(string(tmplBytes))
+	tmpl, err := template.New(filepath.Base(templatePath)).Parse(string(tmplBytes))
 	if err != nil {
 		return err
 	}
 
-	// Ensure directory exists
 	outPath := filepath.Join(root, outputPath)
-	os.MkdirAll(filepath.Dir(outPath), 0755)
+	_ = os.MkdirAll(filepath.Dir(outPath), 0755)
 
-	// Create file
 	f, err := os.Create(outPath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	// Replace template vars
 	data := map[string]string{
 		"MODULE": cfg.ModuleName,
 		"PORT":   cfg.Port,
 	}
 
-	// Execute template
 	return tmpl.Execute(f, data)
+}
+
+func installDependencies(root string) error {
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command("go", "mod", "tidy")
+	cmd.Dir = rootAbs
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
 }

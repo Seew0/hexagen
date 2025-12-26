@@ -9,9 +9,9 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 
-	initcfg "{{MODULE}}/config/init"
-	"{{MODULE}}/commons/utils/logger"
-	"{{MODULE}}/services/serviceName/routes"
+	initcfg "{{ .MODULE}}/config/init"
+	"{{ .MODULE}}/commons/utils/logger"
+	"{{ .MODULE}}/services/serviceName/routes"
 )
 
 func NewGinEngine() *gin.Engine {

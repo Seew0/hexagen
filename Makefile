@@ -1,13 +1,7 @@
 PORT ?= 8080
 
 run:
-	go run ./cmd/app.go
+	go run ./main.go -i
 
 build:
-	go build -o bin/app ./cmd/app.go
-
-test:
-	go test ./...
-
-setup:
-	go mod tidy
+	go build -o bin/app ./main.go

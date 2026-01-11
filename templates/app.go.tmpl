@@ -9,9 +9,9 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 
-	initcfg "{{ .MODULE}}/config/init"
-	"{{ .MODULE}}/commons/utils/logger"
-	"{{ .MODULE}}/services/serviceName/routes"
+	logger "github.com/seew0/test/commons/utils"
+	config "github.com/seew0/test/config/init"
+	"github.com/seew0/test/services/serviceName/routes"
 )
 
 func NewGinEngine() *gin.Engine {
@@ -58,11 +58,12 @@ func StartServer(p ServerParams) {
 }
 
 func main() {
+	logger, _ := logger.New()
 	app := fx.New(
 		fx.Provide(
 			NewGinEngine,
-			initcfg.NewServerConfig,
-			logger.New,
+			config.NewServerConfig,
+			logger,
 			routes.NewRouter,
 		),
 		fx.Invoke(routes.RegisterRoutes),
